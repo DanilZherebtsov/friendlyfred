@@ -1,29 +1,16 @@
 import json
-import urllib3
-from tqdm import tqdm
-from lxml import etree
 import pandas as pd
 from anytree import Node, RenderTree
+from common import get_categories, get_children, http
+from update_categories import update_categories
 from categories import categories
 
 
-API_KEY = '8c1eb4cddd303e092cfc0941ad56e599'
 FILE_TYPE = 'json'
-http = urllib3.PoolManager()
+with open('../api_key.txt', 'r') as f:
+    API_KEY = f.read()
 
-
-def _save_categories(categories):
-    '''Save the categories dictionary to a file.'''
-    with open('categories.py', 'w') as f:
-        f.write('categories = ' + str(categories) + '\n')
-    return None
-
-
-def get_categories():
-    """Return the categories from saved dictionary."""
-    from categories import categories
-    return categories
-
+root_url = 'https://api.stlouisfed.org/fred'
 
 def extract_attributes(dictionary):
     '''Extract the name, id, and parent_id from a dictionary.'''
@@ -125,33 +112,6 @@ def _get_dict_value_by_key_recursive(search_dict, search_key):
             if results is not None:
                 return results        
 
-def get_children(category):
-    '''Query FRED for the children of a category and return a dictionary with the children data.
-    
-    Parameters:
-    category: str or int
-        The category name or category_id to query.
-        
-    Returns:
-    dict: The category data.
-    
-    '''
-    if isinstance(category, str):
-        category_id = _get_category_id(category)
-    else:
-        category_id = category
-    url = f'https://api.stlouisfed.org/fred/category/children?category_id={category_id}'
-    url = f'{url}&api_key={API_KEY}&file_type={FILE_TYPE}'
-    response = http.request('GET', url)
-    response = json.loads(response.data.decode('utf-8'))
-    children = {}
-    for child in response['categories']:
-        name, id, parent_id = extract_attributes(child)
-        children[name] = {'id': id, 'parent_id': parent_id}
-    if not children:
-        print(f'No subcategories found for category: {category}')
-    return children
-
 
 def get_category(category):
     '''Query FRED for the category data and return a dictionary with the category data.
@@ -165,7 +125,7 @@ def get_category(category):
     
     '''
     category_id = _get_category_id(category)
-    url = f'https://api.stlouisfed.org/fred/category?category_id={category_id}'
+    url = f'{root_url}/category?category_id={category_id}'
     url = f'{url}&api_key={API_KEY}&file_type={FILE_TYPE}'
     response = http.request('GET', url)
     response = json.loads(response.data.decode('utf-8'))
@@ -213,7 +173,7 @@ def _create_tree_for_category(category):
     return top_level    
 
 
-def _print_etree(tree, highlight_category = None):
+def _print_anytree(tree, highlight_category = None):
     '''Print a lxml.tree.'''
     CSI = "\x1B\x5B"
     for pre, fill, node in RenderTree(tree):
@@ -270,54 +230,15 @@ def print_tree(depth = 0, category = None):
                     for subsubcat, id in subcats_dict[subcat]['children'].items():
                         subsubcat_node = Node(subsubcat, parent=subcat_node)
     if category is not None:
-        _print_etree(top_level, highlight_category = category)
+        _print_anytree(top_level, highlight_category = category)
         if category is None and depth < 2:
             print(f'\nFor more details call get_categories(depth = {depth + 1})')
     else:
-        _print_etree(top_level)
+        _print_anytree(top_level)
         if category is None and depth < 2:
             print(f'\nFor more details call get_categories(depth = {depth + 1})')
  
 
-def update_categories():
-    '''Update the categories dictionary with the latest categories from the FRED website.'''    
-    print('Updating categories from FRED website. This may take about 60 seconds.')
-    try:
-        url = 'https://fred.stlouisfed.org/categories/'
-        response = http.request('GET', url)
-        response = response.data.decode('utf-8')
-        parser = etree.XMLParser(recover=True)
-        root = etree.fromstring(response, parser)
-        categories = {}
-        groups = root.xpath('//div[@class="fred-categories-group"]')
-        for group in groups:
-            group = etree.tostring(group)
-            group = group.split(b'<br class="clear">')[0]
-            group = etree.fromstring(group, parser)
-            parent = group.xpath('//p[@class="large fred-categories-parent"]')
-            parent_id = parent[0].xpath('a/@href')
-            parent_id = int(parent_id[0].split('/')[-1])
-            parent_name = parent[0].xpath('a/strong/text()')[0]
-            parent_name = parent_name.replace('  ', ' & ')
-            children = group.xpath('//p[@class="fred-categories-children"]/span')
-            children_ids = [child.xpath('a/@href')[0] for child in children]
-            children_ids = [int(child.split('/')[-1]) for child in children_ids]
-            children_names = [child.xpath('a/text()')[0] for child in children]
-            children_names = [child.replace('  ', ' & ') for child in children_names]
-            categories[parent_name] = {'id': parent_id, 'parent_id':0, 'children': {}}
-            categories[parent_name]['children'] = {}
-            for ix, id in enumerate(children_ids):
-                categories[parent_name]['children'][children_names[ix]] = {'id': id, 'parent_id': parent_id}
-        for parent_name, children in tqdm(categories.items()):
-            for child_name, child in children['children'].items():
-                child_id = child['id']
-                child['children'] = get_children(child_id)
-        _save_categories(categories)
-        return categories
-    except Exception as e:
-        print(f'Error updating categories: {e}')
-        print('\nReturning initial categories.')
-        return get_categories()
 
 
 def get_series_in_category(category, discontinued = True):
@@ -334,7 +255,7 @@ def get_series_in_category(category, discontinued = True):
     
     '''
     category_id = _get_category_id(category)
-    url = f'https://api.stlouisfed.org/fred/category/series?category_id={category_id}&realtime_start=1777-04-04'
+    url = f'{root_url}/category/series?category_id={category_id}&realtime_start=1777-04-04'
     url = f'{url}&api_key={API_KEY}&file_type={FILE_TYPE}'
     response = http.request('GET', url)
     response = json.loads(response.data.decode('utf-8'))
@@ -355,7 +276,7 @@ def get_observations(series_id):
     dict: The observations in the series.
     
     '''
-    url = f'https://api.stlouisfed.org/fred/series/observations?series_id={series_id}'
+    url = f'{root_url}/series/observations?series_id={series_id}'
     url = f'{url}&api_key={API_KEY}&file_type={FILE_TYPE}'
     response = http.request('GET', url)
     response = json.loads(response.data.decode('utf-8'))
@@ -434,7 +355,7 @@ def print_series_in_category(category, discontinued = True):
         last_node = _get_last_tree_node(category_tree)
         for series_name in series_names:
             category_tree = _add_node_to_parent(category_tree, last_node, series_name)
-    _print_etree(category_tree, highlight_category = category)
+    _print_anytree(category_tree, highlight_category = category)
     return None
 
 
@@ -503,4 +424,4 @@ chage get_categories to query the categories dict
 '''
 
 results = search('stock')
-save = series_in_cat.copy()
+

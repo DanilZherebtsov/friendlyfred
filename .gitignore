@@ -1,2 +1,3 @@
 .DS_Store
-fred_creds.txt
+api_key.txt
+**__pycache__/
