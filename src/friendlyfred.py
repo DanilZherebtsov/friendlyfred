@@ -486,14 +486,32 @@ def _add_filter(url, filter):
     return url
 
 
-def search(search_text, discontinued = True, limit = 1000, order_by = 'search_rank', sort_order = 'asc', filter = None):
+def _drop_discontinued(data, discontinued):
+    '''Drop discontinued series from data.
+    
+    Parameters:
+    data: pd.DataFrame
+        The data to filter.
+    discontinued: bool
+        If False exclude series which have "(DISCONTINUED)" string in title.
+        
+    Returns:
+    pd.DataFrame.
+    
+    '''
+    if not discontinued:
+        data = data[~data['title'].str.contains('DISCONTINUED')]
+    return data
+
+
+def search(search_text, discontinued = True, limit = None, order_by = 'search_rank', sort_order = 'asc', filter = None):
     '''Search for series in FRED database.
     
     Parameters:
     search_text: str
         Search query.
     limit: int
-        Limit the number of results. Default is 1000. 
+        Limit the number of results. Default is None which will return up to 1000 results. 
     order_by: str
         Order results by values of the specified attribute.
         One of the following strings: 'series_id', 'title', 'units', 'frequency', 
@@ -519,7 +537,6 @@ def search(search_text, discontinued = True, limit = 1000, order_by = 'search_ra
     pd.DataFrame: df with metadata of all the series in category.
     
     '''
-    max_results_per_request = 1000
     search_query = _construct_search_query(search_text)
     url = f'{ROOT_URL}/series/search?search_text={search_query}&api_key={API_KEY}&file_type={FILE_TYPE}'
     url = _add_order_by(url, order_by)
@@ -530,35 +547,30 @@ def search(search_text, discontinued = True, limit = 1000, order_by = 'search_ra
         print(response['error_message'])
         return
     data = pd.DataFrame(response['seriess'])
-    if (len(data) < 1000 and len(data) < limit) or (len(data) == 1000 and limit == 1000):
-        return data
+    data = _drop_discontinued(data, discontinued)
+    if limit is None or len(data) > limit:
+        return data.head(limit)
     if len(data) == 0:
         print(f'No results found for search term: {search_text}')
         return
-    if len(data) > limit:
-        return data.head(limit)
 
     spinner = spinning_cursor()
-    for i in range(1, limit // max_results_per_request + 1):
+    for _ in range(1, 9999):
         sys.stdout.write(next(spinner))
         sys.stdout.flush()
-        offset = i* max_results_per_request
+        offset = len(data)
         next_data = _fetch_response(f'{url}&offset={offset}')
         next_data = pd.DataFrame(next_data['seriess'])
         if len(next_data) == 0:
             break
         data = pd.concat([data, next_data])
+        data = _drop_discontinued(data, discontinued)
         sys.stdout.write('\b')
-    if not discontinued:
-        data = data[~data['title'].str.contains('DISCONTINUED')]
-    # fetch more data if discontinued droped too many rows
-    if len(data) < limit:
-        next_data = _fetch_response(f'{url}&offset={len(data)}')
-        next_data = pd.DataFrame(next_data['seriess'])
-        data = pd.concat([data, next_data])
+        if len(data) > limit:
+            break
     if len(data) > limit:
         data = data.head(limit)
-    return data
+    return data.reset_index(drop=True)
 
 
 def get_series_in_category(category, discontinued = True, limit = 1000, order_by='series_id', sort_order='asc', filter=None):
@@ -588,7 +600,6 @@ def get_series_in_category(category, discontinued = True, limit = 1000, order_by
     pd.DataFrame: df with metadata of all the series in category.
     
     '''
-    max_results_per_request = 1000
     category_id = _get_category_id(category)
     if category_id is None:
         print(f'Category "{category}" not found.')
@@ -604,28 +615,27 @@ def get_series_in_category(category, discontinued = True, limit = 1000, order_by
         print(response['error_message'])
         return
     data = pd.DataFrame(response['seriess'])
-
-    if (len(data) < 1000 and len(data) < limit) or (len(data) == 1000 and limit == 1000):
-        return data
+    data = _drop_discontinued(data, discontinued)
+    if limit is None or len(data) > limit:
+        return data.head(limit)
     if len(data) == 0:
         print(f'No series found in category: {category}')
         return
-    if len(data) > limit:
-        return data.head(limit)
     
     spinner = spinning_cursor()
-    for i in range(1, limit // max_results_per_request + 1):
+    for _ in range(1, 9999):
         sys.stdout.write(next(spinner))
         sys.stdout.flush()
-        offset = i * max_results_per_request
+        offset = len(data)
         next_data = _fetch_response(f'{url}&offset={offset}')
         next_data = pd.DataFrame(next_data['seriess'])
         if len(next_data) == 0:
             break
         data = pd.concat([data, next_data])
+        data = _drop_discontinued(data, discontinued)
         sys.stdout.write('\b')
-    if not discontinued:
-        data = data[~data['title'].str.contains('DISCONTINUED')]
+        if len(data) > limit:
+            break
     if len(data) > limit:
         data = data.head(limit)
     return response
