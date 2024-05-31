@@ -1,8 +1,8 @@
 import json
 import pandas as pd
+from lxml import etree
+from tqdm import tqdm
 from anytree import Node, RenderTree
-from common import get_categories, get_children, http
-from update_categories import update_categories
 from categories import categories
 
 
@@ -12,12 +12,139 @@ with open('../api_key.txt', 'r') as f:
 
 root_url = 'https://api.stlouisfed.org/fred'
 
+
+def _save_categories(categories):
+    '''Save the categories dictionary to a file.'''
+    with open('categories.py', 'w') as f:
+        f.write('categories = ' + str(categories) + '\n')
+    return None
+
+
+def update_categories():
+    '''Update the categories dictionary with the latest categories from the FRED website.'''    
+    print('Updating categories from FRED website. This may take about 60 seconds.')
+    try:
+        url = f'https://fred.stlouisfed.org/categories/'
+        response = http.request('GET', url)
+        response = response.data.decode('utf-8')
+        parser = etree.XMLParser(recover=True)
+        root = etree.fromstring(response, parser)
+        categories = {}
+        groups = root.xpath('//div[@class="fred-categories-group"]')
+        for group in groups:
+            group = etree.tostring(group)
+            group = group.split(b'<br class="clear">')[0]
+            group = etree.fromstring(group, parser)
+            parent = group.xpath('//p[@class="large fred-categories-parent"]')
+            parent_id = parent[0].xpath('a/@href')
+            parent_id = int(parent_id[0].split('/')[-1])
+            parent_name = parent[0].xpath('a/strong/text()')[0]
+            parent_name = parent_name.replace('  ', ' & ')
+            children = group.xpath('//p[@class="fred-categories-children"]/span')
+            children_ids = [child.xpath('a/@href')[0] for child in children]
+            children_ids = [int(child.split('/')[-1]) for child in children_ids]
+            children_names = [child.xpath('a/text()')[0] for child in children]
+            children_names = [child.replace('  ', ' & ') for child in children_names]
+            categories[parent_name] = {'id': parent_id, 'parent_id':0, 'children': {}}
+            categories[parent_name]['children'] = {}
+            for ix, id in enumerate(children_ids):
+                categories[parent_name]['children'][children_names[ix]] = {'id': id, 'parent_id': parent_id}
+        for parent_name, children in tqdm(categories.items()):
+            for child_name, child in children['children'].items():
+                child_id = child['id']
+                child['children'] = get_children(child_id)
+        _save_categories(categories)
+        return categories
+    except Exception as e:
+        print(f'Error updating categories: {e}')
+        print('\nReturning initial categories.')
+        return get_categories()
+
+
+
+
+def _get_dict_value_by_key_recursive(search_dict, search_key):
+    """Takes a nested dict, and searches all dicts for a key and returns the value.
+    
+    Parameters:
+    search_dict: dict
+        The dictionary to search.
+    search_key: str
+        The key to search for.
+        
+    Returns:
+    value: dict
+        The value of the search_key.
+    
+    """
+    for key, value in search_dict.items():
+        if key == search_key:
+            return value
+        if isinstance(value, dict):
+            results = _get_dict_value_by_key_recursive(value, search_key)
+            if results is not None:
+                return results        
+
+
+def get_categories():
+    """Return the categories from saved dictionary."""
+    from categories import categories
+    return categories
+
+
 def extract_attributes(dictionary):
     '''Extract the name, id, and parent_id from a dictionary.'''
     name = dictionary['name']
     id = dictionary['id']
     parent_id = dictionary['parent_id']
     return name, id, parent_id
+
+
+def get_children(category):
+    '''Query FRED for the children of a category and return a dictionary with the children data.
+    
+    Parameters:
+    category: str or int
+        The category name or category_id to query.
+        
+    Returns:
+    dict: The category data.
+    
+    '''
+    if isinstance(category, str):
+        category_id = _get_category_id(category)
+    else:
+        category_id = category
+    url = f'{root_url}/category/children?category_id={category_id}'
+    url = f'{url}&api_key={API_KEY}&file_type={FILE_TYPE}'
+    response = http.request('GET', url)
+    response = json.loads(response.data.decode('utf-8'))
+    children = {}
+    for child in response['categories']:
+        name, id, parent_id = extract_attributes(child)
+        children[name] = {'id': id, 'parent_id': parent_id}
+    if not children:
+        print(f'No subcategories found for category: {category}')
+    return children
+
+
+def get_category(category):
+    '''Query FRED for the category data and return a dictionary with the category data.
+    
+    Parameters:
+    category: str or int
+        The category name or category_id to query.
+        
+    Returns:
+    dict: The category data.
+    
+    '''
+    category_id = _get_category_id(category)
+    url = f'{root_url}/category?category_id={category_id}'
+    url = f'{url}&api_key={API_KEY}&file_type={FILE_TYPE}'
+    response = http.request('GET', url)
+    response = json.loads(response.data.decode('utf-8'))
+    return response
 
 
 def _get_category_id(category):
@@ -54,7 +181,7 @@ def __get_category_id_by_name_recursive(search_dict, search_key):
             id = __get_category_id_by_name_recursive(value, search_key)
             if id is not None:
                 return id
-
+            
 
 def _get_category_name(id):
     '''Get the category name from the category_id iterating over categories dict.'''
@@ -88,48 +215,6 @@ def __get_category_name_by_id_recursive(search_dict, search_key):
             name = __get_category_name_by_id_recursive(value, search_key)
             if name is not None:
                 return name
-
-
-def _get_dict_value_by_key_recursive(search_dict, search_key):
-    """Takes a nested dict, and searches all dicts for a key and returns the value.
-    
-    Parameters:
-    search_dict: dict
-        The dictionary to search.
-    search_key: str
-        The key to search for.
-        
-    Returns:
-    value: dict
-        The value of the search_key.
-    
-    """
-    for key, value in search_dict.items():
-        if key == search_key:
-            return value
-        if isinstance(value, dict):
-            results = _get_dict_value_by_key_recursive(value, search_key)
-            if results is not None:
-                return results        
-
-
-def get_category(category):
-    '''Query FRED for the category data and return a dictionary with the category data.
-    
-    Parameters:
-    category: str or int
-        The category name or category_id to query.
-        
-    Returns:
-    dict: The category data.
-    
-    '''
-    category_id = _get_category_id(category)
-    url = f'{root_url}/category?category_id={category_id}'
-    url = f'{url}&api_key={API_KEY}&file_type={FILE_TYPE}'
-    response = http.request('GET', url)
-    response = json.loads(response.data.decode('utf-8'))
-    return response
 
 
 def _find_parents(data, category_name, parents=[]):
@@ -186,7 +271,7 @@ def _print_anytree(tree, highlight_category = None):
             print(f'{pre}{node.name}')
 
 
-def print_tree(depth = 0, category = None):
+def print_tree(depth = 0, category = None, discontinued = True):
     '''Print all available FRED categories.
     
     Parameters:
@@ -214,6 +299,9 @@ def print_tree(depth = 0, category = None):
         if series_names is not None:
             last_node = _get_last_tree_node(top_level)  
             for series_name in series_names:
+                if not discontinued:
+                    if "(DISCONTINUED)" in series_name:
+                        continue
                 top_level = _add_node_to_parent(top_level, last_node, series_name)
     else:
         top_level = Node(root_node_name)
@@ -237,8 +325,6 @@ def print_tree(depth = 0, category = None):
         _print_anytree(top_level)
         if category is None and depth < 2:
             print(f'\nFor more details call get_categories(depth = {depth + 1})')
- 
-
 
 
 def get_series_in_category(category, discontinued = True):
@@ -264,6 +350,7 @@ def get_series_in_category(category, discontinued = True):
     if not discontinued:
         response = response[~response['title'].str.contains('DISCONTINUED')]
     return response
+
 
 def get_observations(series_id):
     '''Get the observations in a series.
@@ -300,14 +387,6 @@ def _get_last_tree_node(tree):
     return node
 
 
-def _delete_last_tree_node(tree):
-    '''Delete the last node in a tree.'''
-    for pre, fill, node in RenderTree(tree):
-        pass
-    node.parent = None
-    return tree
-
-
 def _add_node_to_parent(tree, parent, new_node_name):
     '''Add a node to a parent node in a tree.'''
     for pre, fill, node in RenderTree(tree):
@@ -325,38 +404,6 @@ def _get_series_names_for_category(category, discontinued = True):
     if not discontinued:
         series_names = [s for s in series_names if "(DISCONTINUED)" not in s]
     return series_names
-
-
-def print_series_in_category(category, discontinued = True):
-    '''Print the series in a category.
-    
-    Parameters:
-    category: str or int
-        The category name or category_id to query.
-    exclude_discontinued: bool
-        Exclude series which have "(DISCONTINUED)" string in title
-    
-    Returns:
-    None
-    
-    '''
-    if isinstance(category, int):
-        category = _get_category_name(category)
-    category_tree = _create_tree_for_category(category)
-
-    if category_tree is None:
-        print(f'Category {category} not found, please refer to .print_tree(depth = 2) for all available categories.')
-        return None
-    last_node = _get_last_tree_node(category_tree)
-    if last_node.name.startswith('series:'):
-        category_tree = _delete_last_tree_node(category_tree)
-    series_names = _get_series_names_for_category(category, discontinued = True)
-    if series_names is not None:
-        last_node = _get_last_tree_node(category_tree)
-        for series_name in series_names:
-            category_tree = _add_node_to_parent(category_tree, last_node, series_name)
-    _print_anytree(category_tree, highlight_category = category)
-    return None
 
 
 def _search_recursive(string, categories=categories, results=None):
@@ -392,19 +439,11 @@ print_tree(category = 'Money Market Accounts')
 print_tree(category = 'Weekly Initial Claims')
 print_tree(category = 22)
 
-# !!!!! FIX: both below return the same output. Maybe scrap print_series_in_category
-# !!!!! Keep in mind the discontinued arg, not present in print_tree yet
-print_tree(category = 33058)
-print_series_in_category(category = 33058, discontinued=False)
-
-print_series_in_category(category = 33058, discontinued=True)
-print_series_in_category(category = 'Weekly Initial Claims')
-print_series_in_category(category = '4-Week Moving Average of Continued Claims (Insured Unemployment)') # should not print series
-print_series_in_category(category = 'National Income & Product Accounts')
+print_tree(category = 33058, discontinued=True)
+print_tree(category = 33058, discontinued=False)
 print_tree(category = 'National Income & Product Accounts')
-print_series_in_category(category = 'Interest Rates')
 get_observations('OBMMIC30YFLVLE80FLT680')
-categories = get_categories()
+categories = get_categories() 
 get_category(117)
 get_category('Prime Bank Loan Rate')
 get_children('Interest Rates')
