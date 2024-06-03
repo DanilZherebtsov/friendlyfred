@@ -1,3 +1,4 @@
+import os
 import sys
 import json
 import pandas as pd
@@ -6,6 +7,7 @@ from tqdm import tqdm
 from urllib3 import PoolManager
 from anytree import Node, RenderTree
 from categories import categories
+from utils import spinning_cursor
 
 http = PoolManager()
 
@@ -16,10 +18,19 @@ with open('../api_key.txt', 'r') as f:
 ROOT_URL = 'https://api.stlouisfed.org/fred'
 
 
-def spinning_cursor():
-    while True:
-        for cursor in '|/-\\':
-            yield cursor
+class Fred:
+    def __init__(self, 
+                 api_key = None, 
+                 api_key_file = None):
+        self.http = PoolManager()
+        self.api_key = None
+        if api_key is not None:
+            self.api_key = api_key
+        elif api_key_file is not None:
+            with open(api_key_file, 'r') as f:
+                self.api_key = f.read()
+        else:
+            self.api_key = os.environ.get('FRED_API_KEY')        
 
 
 def _save_categories(categories):
@@ -29,48 +40,8 @@ def _save_categories(categories):
     return None
 
 
-def update_categories():
-    '''Update the categories dictionary with the latest categories from the FRED website.'''    
-    print('Updating categories from FRED website. This may take about 60 seconds.')
-    try:
-        url = f'https://fred.stlouisfed.org/categories/'
-        response = http.request('GET', url)
-        response = response.data.decode('utf-8')
-        parser = etree.XMLParser(recover=True)
-        root = etree.fromstring(response, parser)
-        categories = {}
-        groups = root.xpath('//div[@class="fred-categories-group"]')
-        for group in groups:
-            group = etree.tostring(group)
-            group = group.split(b'<br class="clear">')[0]
-            group = etree.fromstring(group, parser)
-            parent = group.xpath('//p[@class="large fred-categories-parent"]')
-            parent_id = parent[0].xpath('a/@href')
-            parent_id = int(parent_id[0].split('/')[-1])
-            parent_name = parent[0].xpath('a/strong/text()')[0]
-            parent_name = parent_name.replace('  ', ' & ')
-            children = group.xpath('//p[@class="fred-categories-children"]/span')
-            children_ids = [child.xpath('a/@href')[0] for child in children]
-            children_ids = [int(child.split('/')[-1]) for child in children_ids]
-            children_names = [child.xpath('a/text()')[0] for child in children]
-            children_names = [child.replace('  ', ' & ') for child in children_names]
-            categories[parent_name] = {'id': parent_id, 'parent_id':0, 'children': {}}
-            categories[parent_name]['children'] = {}
-            for ix, id in enumerate(children_ids):
-                categories[parent_name]['children'][children_names[ix]] = {'id': id, 'parent_id': parent_id}
-        for parent_name, children in tqdm(categories.items()):
-            for child_name, child in children['children'].items():
-                child_id = child['id']
-                child['children'] = get_subcategories(child_id)
-        _save_categories(categories)
-        return categories
-    except Exception as e:
-        print(f'Error updating categories: {e}')
-        print('\nReturning initial categories.')
-        return get_categories()
-
-
 def _get_dict_value_by_key_recursive(search_dict, search_key):
+
     """Takes a nested dict, and searches all dicts for a key and returns the value.
     
     Parameters:
@@ -93,97 +64,12 @@ def _get_dict_value_by_key_recursive(search_dict, search_key):
                 return results        
 
 
-def get_categories():
-    """Return categories from saved dictionary. 
-    They reflect all categories and subcategories in FRED database."""
-    from categories import categories
-    return categories
-
-
-def extract_attributes(dictionary):
+def _extract_attributes(dictionary):
     '''Extract the name, id, and parent_id from a dictionary.'''
     name = dictionary['name']
     id = dictionary['id']
     parent_id = dictionary['parent_id']
     return name, id, parent_id
-
-
-def get_subcategories(category):
-    '''Query FRED for the children of a category and return a dictionary with the children data.
-    
-    Parameters:
-    category: str or int
-        The category name or category_id to query.
-        
-    Returns:
-    dict: The category data.
-    
-    '''
-    if isinstance(category, str):
-        category_id = _get_category_id(category)
-    else:
-        category_id = category
-    url = f'{ROOT_URL}/category/children?category_id={category_id}'
-    url = f'{url}&api_key={API_KEY}&file_type={FILE_TYPE}'
-    response = http.request('GET', url)
-    response = json.loads(response.data.decode('utf-8'))
-    children = {}
-    for child in response['categories']:
-        name, id, parent_id = extract_attributes(child)
-        children[name] = {'id': id, 'parent_id': parent_id}
-    if not children:
-        print(f'No subcategories found for category: {category}')
-    return children
-
-
-def get_category_meta(category):
-    '''Get category_id, name and parent_id.
-    
-    Parameters:
-    category: str or int
-        The category name or category_id to query.
-        
-    Returns:
-    dict: Category data.
-    
-    '''
-    category_id = _get_category_id(category)
-    url = f'{ROOT_URL}/category?category_id={category_id}'
-    url = f'{url}&api_key={API_KEY}&file_type={FILE_TYPE}'
-    response = http.request('GET', url)
-    response = json.loads(response.data.decode('utf-8'))
-    return response
-
-
-def get_related_categories(category):
-    '''Get related categories for a category.
-    
-    Parameters:
-    category: str or int
-        The category name or category_id to query.
-    
-    Returns:
-    list: List of related categories.
-    
-    '''
-    category_id = _get_category_id(category)
-    url = f'{ROOT_URL}/category/related?category_id={category_id}'
-    url = f'{url}&api_key={API_KEY}&file_type={FILE_TYPE}'
-    response = _fetch_response(url)
-    if 'error_code' in response:
-        print(response['error_message'])
-        return
-    if not response['categories']:
-        print(f'No related categories found for category: {category}')
-        return
-    return response['categories']
-    
-
-def get_series_meta(series_id):
-    url = f'{ROOT_URL}/series?series_id={series_id}&api_key={API_KEY}&file_type={FILE_TYPE}'
-    response = _fetch_response(url)
-    series_meta = response['seriess']
-    return series_meta
 
 
 def _get_category_id(category):
@@ -310,123 +196,10 @@ def _print_anytree(tree, highlight_category = None):
             print(f'{pre}{node.name}')
 
 
-def print_tree(depth = 0, category = None, discontinued = True):
-    '''Print all available FRED categories.
-    
-    Parameters:
-    depth: int
-        The depth of the categories to print. Can take values from 0 to 2.
-    category: str or int
-        The category_title or category_id.
-
-    If category is passed, the function will print the category and its subcategories, 
-    in this case it will disregard the depth parameter.
-
-    Returns:
-    None
-        
-    '''
-    root_node_name = 'root'
-    if category is not None:
-        if isinstance(category, int):
-            category = _get_category_name(category)
-        top_level = _create_tree_for_category(category)
-        if top_level is None:
-            print(f'Category {category} not found, please refer to .print_tree(depth = 2) for all available categories.')
-            return None
-        series_names = _get_series_names_for_category(category)
-        if series_names is not None:
-            last_node = _get_last_tree_node(top_level)  
-            for series_name in series_names:
-                if not discontinued:
-                    if "(DISCONTINUED)" in series_name:
-                        continue
-                top_level = _add_node_to_parent(top_level, last_node, series_name)
-    else:
-        top_level = Node(root_node_name)
-        top_level.name
-        for top_cat, subcats in categories.items():
-            top_cat_node = Node(top_cat, parent=top_level)
-            subcats_dict = subcats['children'] if 'children' in subcats else subcats
-            if depth == 1:
-                for subcat, id in subcats_dict.items():
-                    subcat_node = Node(subcat, parent=top_cat_node)
-            elif depth > 1:
-                for subcat, id in subcats_dict.items():
-                    subcat_node = Node(subcat, parent=top_cat_node)
-                    for subsubcat, id in subcats_dict[subcat]['children'].items():
-                        subsubcat_node = Node(subsubcat, parent=subcat_node)
-    if category is not None:
-        _print_anytree(top_level, highlight_category = category)
-        if category is None and depth < 2:
-            print(f'\nFor more details call get_categories(depth = {depth + 1})')
-    else:
-        _print_anytree(top_level)
-        if category is None and depth < 2:
-            print(f'\nFor more details call get_categories(depth = {depth + 1})')
-
-
 def _fetch_response(url):
     response = http.request('GET', url)
     response = json.loads(response.data.decode('utf-8'))
     return response
-
-
-def get_observations(series_id, observation_start = "1776-07-04", observation_end = "9999-12-31", frequency = None):
-    '''
-    Get the datapoints in a series.
-
-    Parameters:
-    series_id: str
-        series_id to query.
-    observation_start: str
-        The start date for the observations. Default is "1776-07-04". 
-        Start date cannot be earlier than Default.
-    observation_end: str
-        The end date for the observations. Default is "9999-12-31".
-    frequency: str
-        The frequency of the observations. Default is None.
-
-        Frequencies without period descriptions:
-
-        d = Daily
-        w = Weekly
-        bw = Biweekly
-        m = Monthly
-        q = Quarterly
-        sa = Semiannual
-        a = Annual
-
-        Frequencies with period descriptions:
-
-        wef = Weekly, Ending Friday
-        weth = Weekly, Ending Thursday
-        wew = Weekly, Ending Wednesday
-        wetu = Weekly, Ending Tuesday
-        wem = Weekly, Ending Monday
-        wesu = Weekly, Ending Sunday
-        wesa = Weekly, Ending Saturday
-        bwew = Biweekly, Ending Wednesday
-        bwem = Biweekly, Ending Monday
-    
-    Returns:
-    pd.DataFrame: df with dates and observations.
-
-    '''
-    frequency_values = ['d', 'w', 'bw', 'm', 'q', 'sa', 'a', 'wef', 'weth', 'wew', 'wetu', 'wem', 'wesu', 'wesa', 'bwew', 'bwem']
-    url = f"{ROOT_URL}/series/observations?series_id={series_id}"
-    url = f'{url}&api_key={API_KEY}&file_type={FILE_TYPE}'
-    url = f'{url}&observation_start={observation_start}'
-    url = f'{url}&observation_end={observation_end}'
-    if frequency and frequency in frequency_values:
-        url = f'{url}&frequency={frequency}'
-    response = _fetch_response(url)
-    if 'error_code' in response:
-        print(response['error_message'])
-        return
-    data = pd.DataFrame(response['observations'])
-    data = data[['date', 'value']]
-    return data
 
 
 def _construct_search_query(search_text):
@@ -504,6 +277,329 @@ def _drop_discontinued(data, discontinued):
     return data
 
 
+def _get_last_tree_node(tree):
+    '''Get the last node in a tree.'''
+    for pre, fill, node in RenderTree(tree):
+        pass
+    return node
+
+
+def _add_node_to_parent(tree, parent, new_node_name):
+    '''Add a node to a parent node in a tree.'''
+    for pre, fill, node in RenderTree(tree):
+        if node == parent:
+            new_node = Node(new_node_name, parent=node)
+    return tree
+
+
+def _get_series_names_for_category(category, discontinued = True):
+    series_data = get_series_in_category(category)
+    if series_data is None:
+        print(f'No series found for category "{category}". Wrong category name or category contains subcategories.')
+        return None
+    if series_data.empty:
+        print(f'No series found for category "{category}". Wrong category name or category contains subcategories.')
+        return None
+        
+    series_names = [f"{val} || series_id: {key}" for key, val in  dict(zip(series_data['id'], series_data['title'])).items()]
+    if not discontinued:
+        series_names = [s for s in series_names if "(DISCONTINUED)" not in s]
+    return series_names
+
+
+def _search_recursive(string, categories=categories, results=None):
+    '''Search for a category by iterating over all categories and checking if string is contained in category name text.'''
+    if results is None:
+        results = []
+    for key, value in categories.items():
+        if string.lower() in key.lower():
+            results.append(key)
+        if isinstance(value, dict):
+            _search_recursive(string, value, results)
+    return results
+
+
+def get_observations(series_id, observation_start = "1776-07-04", observation_end = "9999-12-31", frequency = None):
+    '''
+    Get the datapoints in a series.
+
+    Parameters:
+    series_id: str
+        series_id to query.
+    observation_start: str
+        The start date for the observations. Default is "1776-07-04". 
+        Start date cannot be earlier than Default.
+    observation_end: str
+        The end date for the observations. Default is "9999-12-31".
+    frequency: str
+        The frequency of the observations. Default is None.
+
+        Frequencies without period descriptions:
+
+        d = Daily
+        w = Weekly
+        bw = Biweekly
+        m = Monthly
+        q = Quarterly
+        sa = Semiannual
+        a = Annual
+
+        Frequencies with period descriptions:
+
+        wef = Weekly, Ending Friday
+        weth = Weekly, Ending Thursday
+        wew = Weekly, Ending Wednesday
+        wetu = Weekly, Ending Tuesday
+        wem = Weekly, Ending Monday
+        wesu = Weekly, Ending Sunday
+        wesa = Weekly, Ending Saturday
+        bwew = Biweekly, Ending Wednesday
+        bwem = Biweekly, Ending Monday
+    
+    Returns:
+    pd.DataFrame: df with dates and observations.
+
+    '''
+    frequency_values = ['d', 'w', 'bw', 'm', 'q', 'sa', 'a', 'wef', 'weth', 'wew', 'wetu', 'wem', 'wesu', 'wesa', 'bwew', 'bwem']
+    url = f"{ROOT_URL}/series/observations?series_id={series_id}"
+    url = f'{url}&api_key={API_KEY}&file_type={FILE_TYPE}'
+    url = f'{url}&observation_start={observation_start}'
+    url = f'{url}&observation_end={observation_end}'
+    if frequency and frequency in frequency_values:
+        url = f'{url}&frequency={frequency}'
+    response = _fetch_response(url)
+    if 'error_code' in response:
+        print(response['error_message'])
+        return
+    data = pd.DataFrame(response['observations'])
+    data = data[['date', 'value']]
+    return data
+
+
+def get_categories():
+    """Return categories from saved dictionary. 
+    They reflect all categories and subcategories in FRED database."""
+    from categories import categories
+    return categories
+
+
+def get_subcategories(category):
+    '''Query FRED for the children of a category and return a dictionary with the children data.
+    
+    Parameters:
+    category: str or int
+        The category name or category_id to query.
+        
+    Returns:
+    dict: The category data.
+    
+    '''
+    if isinstance(category, str):
+        category_id = _get_category_id(category)
+    else:
+        category_id = category
+    url = f'{ROOT_URL}/category/children?category_id={category_id}'
+    url = f'{url}&api_key={API_KEY}&file_type={FILE_TYPE}'
+    response = http.request('GET', url)
+    response = json.loads(response.data.decode('utf-8'))
+    children = {}
+    for child in response['categories']:
+        name, id, parent_id = _extract_attributes(child)
+        children[name] = {'id': id, 'parent_id': parent_id}
+    if not children:
+        print(f'No subcategories found for category: {category}')
+    return children
+
+
+def get_related_categories(category):
+    '''Get related categories for a category.
+    
+    Parameters:
+    category: str or int
+        The category name or category_id to query.
+    
+    Returns:
+    list: List of related categories.
+    
+    '''
+    category_id = _get_category_id(category)
+    url = f'{ROOT_URL}/category/related?category_id={category_id}'
+    url = f'{url}&api_key={API_KEY}&file_type={FILE_TYPE}'
+    response = _fetch_response(url)
+    if 'error_code' in response:
+        print(response['error_message'])
+        return
+    if not response['categories']:
+        print(f'No related categories found for category: {category}')
+        return
+    return response['categories']
+    
+
+def update_categories():
+    '''Update the categories dictionary with the latest categories from the FRED website.'''    
+    print('Updating categories from FRED website. This may take about 60 seconds.')
+    try:
+        url = f'https://fred.stlouisfed.org/categories/'
+        response = http.request('GET', url)
+        response = response.data.decode('utf-8')
+        parser = etree.XMLParser(recover=True)
+        root = etree.fromstring(response, parser)
+        categories = {}
+        groups = root.xpath('//div[@class="fred-categories-group"]')
+        for group in groups:
+            group = etree.tostring(group)
+            group = group.split(b'<br class="clear">')[0]
+            group = etree.fromstring(group, parser)
+            parent = group.xpath('//p[@class="large fred-categories-parent"]')
+            parent_id = parent[0].xpath('a/@href')
+            parent_id = int(parent_id[0].split('/')[-1])
+            parent_name = parent[0].xpath('a/strong/text()')[0]
+            parent_name = parent_name.replace('  ', ' & ')
+            children = group.xpath('//p[@class="fred-categories-children"]/span')
+            children_ids = [child.xpath('a/@href')[0] for child in children]
+            children_ids = [int(child.split('/')[-1]) for child in children_ids]
+            children_names = [child.xpath('a/text()')[0] for child in children]
+            children_names = [child.replace('  ', ' & ') for child in children_names]
+            categories[parent_name] = {'id': parent_id, 'parent_id':0, 'children': {}}
+            categories[parent_name]['children'] = {}
+            for ix, id in enumerate(children_ids):
+                categories[parent_name]['children'][children_names[ix]] = {'id': id, 'parent_id': parent_id}
+        for parent_name, children in tqdm(categories.items()):
+            for child_name, child in children['children'].items():
+                child_id = child['id']
+                child['children'] = get_subcategories(child_id)
+        _save_categories(categories)
+        return categories
+    except Exception as e:
+        print(f'Error updating categories: {e}')
+        print('\nReturning initial categories.')
+        return get_categories()
+
+
+def print_tree(depth = 0, category = None, discontinued = True):
+    '''Print all available FRED categories.
+    
+    Parameters:
+    depth: int
+        The depth of the categories to print. Can take values from 0 to 2.
+    category: str or int
+        The category_title or category_id.
+
+    If category is passed, the function will print the category and its subcategories, 
+    in this case it will disregard the depth parameter.
+
+    Returns:
+    None
+        
+    '''
+    root_node_name = 'root'
+    if category is not None:
+        if isinstance(category, int):
+            category = _get_category_name(category)
+        top_level = _create_tree_for_category(category)
+        if top_level is None:
+            print(f'Category {category} not found, please refer to .print_tree(depth = 2) for all available categories.')
+            return None
+        series_names = _get_series_names_for_category(category)
+        if series_names is not None:
+            last_node = _get_last_tree_node(top_level)  
+            for series_name in series_names:
+                if not discontinued:
+                    if "(DISCONTINUED)" in series_name:
+                        continue
+                top_level = _add_node_to_parent(top_level, last_node, series_name)
+    else:
+        top_level = Node(root_node_name)
+        top_level.name
+        for top_cat, subcats in categories.items():
+            top_cat_node = Node(top_cat, parent=top_level)
+            subcats_dict = subcats['children'] if 'children' in subcats else subcats
+            if depth == 1:
+                for subcat, id in subcats_dict.items():
+                    subcat_node = Node(subcat, parent=top_cat_node)
+            elif depth > 1:
+                for subcat, id in subcats_dict.items():
+                    subcat_node = Node(subcat, parent=top_cat_node)
+                    for subsubcat, id in subcats_dict[subcat]['children'].items():
+                        subsubcat_node = Node(subsubcat, parent=subcat_node)
+    if category is not None:
+        _print_anytree(top_level, highlight_category = category)
+        if category is None and depth < 2:
+            print(f'\nFor more details call get_categories(depth = {depth + 1})')
+    else:
+        _print_anytree(top_level)
+        if category is None and depth < 2:
+            print(f'\nFor more details call get_categories(depth = {depth + 1})')
+
+
+def get_series_in_category(category, discontinued = True, limit = 1000, order_by='series_id', sort_order='asc', filter=None):
+    '''Get the series in a category.
+    
+    Parameters:
+    category: str or int
+        The category name or category_id to query.
+    discontinued: bool
+        If False exclude series which have "(DISCONTINUED)" string in title. Default is True.
+    order_by: str
+        Optional: order results by values of the specified attribute.
+        One of the following strings: 'series_id', 'title', 'units', 'frequency', 'seasonal_adjustment', 'realtime_start', 'realtime_end', 'last_updated', 'observation_start', 'observation_end', 'popularity', 'group_popularity'.
+        Default: series_id
+    sort_order: str
+        Optional: sort order of the results.
+        One of the following strings: 'asc', 'desc'.
+        Default: asc
+    filter: tuple
+        Optional: filter results by values of the specified attribute.
+        Two item tuple: (filter_variable, filter_value)
+        One of the following strings: 'frequency', 'units', 'seasonal_adjustment'.
+        Default: None
+        Example: ('seasonal_adjustment', 'Not Seasonally Adjusted')
+
+    Returns:
+    pd.DataFrame: df with metadata of all the series in category.
+    
+    '''
+    category_id = _get_category_id(category)
+    if category_id is None:
+        print(f'Category "{category}" not found.')
+        return None
+    url = f'{ROOT_URL}/category/series?category_id={category_id}'
+    url = f'{url}&api_key={API_KEY}&file_type={FILE_TYPE}'
+    url = _add_order_by(url, order_by)
+    url = _add_sort_order(url, sort_order)
+    url = _add_filter(url, filter)
+    
+    response = _fetch_response(url)
+    if 'error_code' in response:
+        print(response['error_message'])
+        return None
+    data = pd.DataFrame(response['seriess'])
+    if len(data) < limit:
+        return _drop_discontinued(data, discontinued)
+    data = _drop_discontinued(data, discontinued)
+    if len(data) > limit:
+        return data.head(limit)
+    if len(data) == 0:
+        return None
+    spinner = spinning_cursor()
+    for _ in range(1, 9999):
+        sys.stdout.write(next(spinner))
+        sys.stdout.flush()
+        offset = len(data)
+        next_data = _fetch_response(f'{url}&offset={offset}')
+        next_data = pd.DataFrame(next_data['seriess'])
+        if len(next_data) == 0:
+            break
+        data = pd.concat([data, next_data])
+        data = _drop_discontinued(data, discontinued)
+        sys.stdout.write('\b')
+        if len(data) > limit:
+            break
+    if len(data) > limit:
+        data = data.head(limit)
+    return data
+
+
 def search(search_text, discontinued = True, limit = None, order_by = 'search_rank', sort_order = 'asc', filter = None):
     '''Search for series in FRED database.
     
@@ -573,121 +669,48 @@ def search(search_text, discontinued = True, limit = None, order_by = 'search_ra
     return data.reset_index(drop=True)
 
 
-def get_series_in_category(category, discontinued = True, limit = 1000, order_by='series_id', sort_order='asc', filter=None):
-    '''Get the series in a category.
+def get_category_meta(category):
+    '''Get category_id, name and parent_id.
     
     Parameters:
     category: str or int
         The category name or category_id to query.
-    discontinued: bool
-        If False exclude series which have "(DISCONTINUED)" string in title. Default is True.
-    order_by: str
-        Optional: order results by values of the specified attribute.
-        One of the following strings: 'series_id', 'title', 'units', 'frequency', 'seasonal_adjustment', 'realtime_start', 'realtime_end', 'last_updated', 'observation_start', 'observation_end', 'popularity', 'group_popularity'.
-        Default: series_id
-    sort_order: str
-        Optional: sort order of the results.
-        One of the following strings: 'asc', 'desc'.
-        Default: asc
-    filter: tuple
-        Optional: filter results by values of the specified attribute.
-        Two item tuple: (filter_variable, filter_value)
-        One of the following strings: 'frequency', 'units', 'seasonal_adjustment'.
-        Default: None
-        Example: ('seasonal_adjustment', 'Not Seasonally Adjusted')
-
+        
     Returns:
-    pd.DataFrame: df with metadata of all the series in category.
+    dict: Category data.
     
     '''
     category_id = _get_category_id(category)
-    if category_id is None:
-        print(f'Category "{category}" not found.')
-        return None
-    url = f'{ROOT_URL}/category/series?category_id={category_id}'
+    url = f'{ROOT_URL}/category?category_id={category_id}'
     url = f'{url}&api_key={API_KEY}&file_type={FILE_TYPE}'
-    url = _add_order_by(url, order_by)
-    url = _add_sort_order(url, sort_order)
-    url = _add_filter(url, filter)
-    
-    response = _fetch_response(url)
-    if 'error_code' in response:
-        print(response['error_message'])
-        return
-    data = pd.DataFrame(response['seriess'])
-    data = _drop_discontinued(data, discontinued)
-    if limit is None or len(data) > limit:
-        return data.head(limit)
-    if len(data) == 0:
-        print(f'No series found in category: {category}')
-        return
-    
-    spinner = spinning_cursor()
-    for _ in range(1, 9999):
-        sys.stdout.write(next(spinner))
-        sys.stdout.flush()
-        offset = len(data)
-        next_data = _fetch_response(f'{url}&offset={offset}')
-        next_data = pd.DataFrame(next_data['seriess'])
-        if len(next_data) == 0:
-            break
-        data = pd.concat([data, next_data])
-        data = _drop_discontinued(data, discontinued)
-        sys.stdout.write('\b')
-        if len(data) > limit:
-            break
-    if len(data) > limit:
-        data = data.head(limit)
+    response = http.request('GET', url)
+    response = json.loads(response.data.decode('utf-8'))
     return response
 
 
-def _get_last_tree_node(tree):
-    '''Get the last node in a tree.'''
-    for pre, fill, node in RenderTree(tree):
-        pass
-    return node
+def get_series_meta(series_id):
+    url = f'{ROOT_URL}/series?series_id={series_id}&api_key={API_KEY}&file_type={FILE_TYPE}'
+    response = _fetch_response(url)
+    series_meta = response['seriess']
+    return series_meta
 
 
-def _add_node_to_parent(tree, parent, new_node_name):
-    '''Add a node to a parent node in a tree.'''
-    for pre, fill, node in RenderTree(tree):
-        if node == parent:
-            new_node = Node(new_node_name, parent=node)
-    return tree
+f = Fred(api_key_file='../api_key.txt')
+f.api_key
 
-
-def _get_series_names_for_category(category, discontinued = True):
-    series_data = get_series_in_category(category)
-    if series_data.empty:
-        print(f'No series found for category "{category}". Wrong category name or category contains subcategories.')
-        return None
-    series_names = [f"{val} || series_id: {key}" for key, val in  dict(zip(series_data['id'], series_data['title'])).items()]
-    if not discontinued:
-        series_names = [s for s in series_names if "(DISCONTINUED)" not in s]
-    return series_names
-
-
-def _search_recursive(string, categories=categories, results=None):
-    '''Search for a category by iterating over all categories and checking if string is contained in category name text.'''
-    if results is None:
-        results = []
-    for key, value in categories.items():
-        if string.lower() in key.lower():
-            results.append(key)
-        if isinstance(value, dict):
-            _search_recursive(string, value, results)
-    return results
 
 
 print_tree(depth=0)
 print_tree(depth=1) 
 print_tree(depth=2)
 
-print_tree(category = 'National Income & Product Accounts')
+print_tree(category = 'Personal Loan Rates')
 print_tree(category = 'Personal Loan Rates')
 print_tree(category = 'Money Market Accounts')
 print_tree(category = 'Weekly Initial Claims')
 print_tree(category = 22)
+get_category_meta(22)
+print_tree(category = 'Interest Rates')
 
 print_tree(category = 33058, discontinued=True)
 print_tree(category = 33058, discontinued=False)
@@ -722,3 +745,92 @@ TODO:
 
 results = search('stock', limit = 4246, discontinued = False)
 
+lst = ['EFFR',
+ 'SOFR',
+ 'MORTGAGE15US',
+ 'MORTGAGE30US',
+ 'TERMCBPER24NS',
+ 'WGS1MO',
+ 'WGS3MO',
+ 'WGS6MO',
+ 'WGS1YR',
+ 'WGS2YR',
+ 'WGS5YR',
+ 'WGS7YR',
+ 'WGS10YR',
+ 'WGS20YR',
+ 'WGS30YR',
+ 'M2MSL',
+ 'MSIALLA',
+ 'M2V',
+ 'BORROW',
+ 'WALCL',
+ 'ANFCI',
+ 'CANDH',
+ 'DJIA',
+ 'DJTA',
+ 'NASDAQ100',
+ 'NASDAQCOM',
+ 'SP500',
+ 'WILL5000IND',
+ 'WILLLRGCAP',
+ 'WILLMICROCAP',
+ 'WILLMIDCAP',
+ 'WILLSMLCAP',
+ 'GVZCLS',
+ 'OVXCLS',
+ 'RVXCLS',
+ 'VIXCLS',
+ 'VXDCLS',
+ 'VXNCLS',
+ 'DTCNLHDNM',
+ 'DALLACBEP',
+ 'DALLCCACBEP',
+ 'DALLCIACBEP',
+ 'DALLSREACBEP',
+ 'DRALACBS',
+ 'DRBLACBS',
+ 'DRCCLACBS',
+ 'DRCLACBS',
+ 'DRCRELEXFACBS',
+ 'DRLFRACBS',
+ 'DROCLACBS',
+ 'DRSREACBS',
+ 'UNRATE',
+ 'U6RATE',
+ 'CIVPART',
+ 'CES0500000003',
+ 'CPIAUCSL',
+ 'CPILFESL',
+ 'PCE',
+ 'PCEPILFE',
+ 'PAYNSA',
+ 'JTU1000JOR',
+ 'JTU1000HIR',
+ 'JTU1000TSR',
+ 'JTU1000QUR',
+ 'JTU1000LDR',
+ 'JTU1000OSR',
+ 'CCSA',
+ 'ICSA',
+ 'GDPNOW',
+ 'AFEXPND',
+ 'AFRECPT',
+ 'ATLSBUEGEP',
+ '00XALCEZ18M086NEST',
+ 'BVEMTE02EZM460S']
+
+get_observations(lst[0])
+get_series_meta(lst[0])[0]['title']
+
+observations = {}
+for id in tqdm(lst):
+    observations[id] = {}
+    observations[id]['title'] = get_series_meta(id)[0]['title']
+    observations[id]['data'] = get_observations(id)
+
+import pickle
+with open('/Users/danil/Desktop/macrodata.p', 'wb') as f:
+    pickle.dump(observations, f)
+
+search('Effective Federal Funds Rate')
