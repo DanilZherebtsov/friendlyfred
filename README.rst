@@ -40,21 +40,17 @@ Get data for any series:
 Installation
 ******************
 
-.. note:: **Install/Upgrade friendlyfred**
-
   $ ``pip install friendlyfred``
-
   $ ``pip install --upgrade friendlyfred``
 
-------------------
-Get FRED api key
-------------------
-
-To use friendlyfred, you need to get an API key from the FRED website. It's free and quick: go `here <https://research.stlouisfed.org/docs/api/api_key.html>`_, sign up and request an api key.
 
 ******************
 Usage
 ******************
+
+**Get FRED api key**
+*To use friendlyfred, you need to get an API key from the FRED website. It's free and quick: go `here <https://research.stlouisfed.org/docs/api/api_key.html>`_, sign up and request an api key.*
+
 
 .. code-block:: python
 
@@ -64,10 +60,9 @@ Usage
   # optionally create an environment variable FRED_API_KEY and it will be sourced automatically
 
 
-Logic
-================================================================
-
-``friendlyfred`` contains a full structure of all the FRED categories and subcategories which it can display with ``print_tree(depth = 2)`` method without an API key. In order to dive deeper and display the available series for a category (E.g. ``print_tree(category = 'Saving Accounts')``), you need to provide an API key.
+Note 
+===========================
+``friendlyfred`` contains the full structure of all FRED categories and subcategories which it can display with ``print_tree(depth = 2)`` method without an API key. In order to dive deeper and display the available series for a category (E.g. ``print_tree(category = 'Saving Accounts')``), you need to provide an API key.
 
 Methods
 ===========================
@@ -79,13 +74,13 @@ Methods
 
     - ``depth`` int
 
-      Optional: number of levels of subcategories to display. Default is 0, maximum is 2.
+        Optional: number of levels of subcategories to display. Default is 0, maximum is 2.
 
     - ``category`` str or int
 
-      Optional: specific category to display. If category is in the top level (major): the category and it's subcategories are displayed. If category is in the least level (minor subcategory): the full path to this category will be displayed, including all levels of parents and the available series for this category will be displayed.
+        Optional: specific category to display. If category is in the top level (major): the category and it's subcategories are displayed. If category is in the least level (minor subcategory): the full path to this category (parents) and the available series for this category will be displayed.
 
-* ``get_observations(series_id, observation_start = "1776-07-04", observation_end = "9999-12-31", frequency = None)``
+* ``get_observations(series_id, observation_start, observation_end, frequency)``
     
     Get the data for a specific series.
     
@@ -93,19 +88,19 @@ Methods
     
         - ``series_id`` str
     
-        Required: the series id to get the data for.
+            Required: the series id to get the data for.
     
         - ``observation_start`` str
     
-        Optional: the start date for the data. Default is "1776-07-04".
+            Optional: the start date for the data. Default is "1776-07-04".
     
         - ``observation_end`` str
     
-        Optional: the end date for the data. Default is "9999-12-31".
+            Optional: the end date for the data. Default is "9999-12-31".
     
         - ``frequency`` str
 
-        Optional: the frequency of the data. Default is None.
+            Optional: the frequency of the data. Default is None.
 
             Frequencies without period descriptions:
 
@@ -133,7 +128,7 @@ Methods
     
         - ``pandas.DataFrame``
     
-        A pandas DataFrame with the data for the series.
+            A pandas DataFrame with the data for the series.
 
 * ``get_categories()``
 
