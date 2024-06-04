@@ -50,7 +50,7 @@ Installation
 Usage
 ******************
 
-To use ``friendlyfred``, you need to **get FRED api key**from the FRED website. It's free and quick: go `here <https://research.stlouisfed.org/docs/api/api_key.html>`_, sign up and request an api key.
+To use ``friendlyfred``, you need to **get FRED api key** from the FRED website. It's free and quick: go `here <https://research.stlouisfed.org/docs/api/api_key.html>`_, sign up and request an api key.
 
 
 .. code-block:: python
@@ -63,13 +63,13 @@ To use ``friendlyfred``, you need to **get FRED api key**from the FRED website. 
 
 Note 
 ===========================
-``friendlyfred`` contains the full structure of all FRED categories and subcategories which it can display with ``print_tree(depth = 2)`` method without an API key. In order to dive deeper and display the available series for a category (E.g. ``print_tree(category = 'Saving Accounts')``), you need to provide an API key.
+``friendlyfred`` contains the full structure of all FRED categories and subcategories which it can display with ``print_tree(depth = 2)`` method without an API key. In order to dive deeper and display the available series for a category (E.g. ``print_tree(category = 'Saving Accounts')``), or to get observations for any series you need to provide an API key.
 
 Methods
 ===========================
 * ``print_tree(depth, category)``
 
-  Print the FRED categories and subcategories. If depth is 0, it will display only the major categories. If depth is 2, it will display all the subcategories. If category is provided, it will display the available series for that category.
+  Print FRED categories and subcategories. If depth is 0, it will display only the major categories. If depth is 2, it will display all the subcategories. If category is provided, it will display the available series for that category.
 
     Parameters
 
@@ -79,7 +79,7 @@ Methods
 
     - ``category`` str or int
 
-        Optional: specific category to display. If category is in the top level (major): the category and it's subcategories are displayed. If category is in the least level (minor subcategory): the full path to this category (parents) and the available series for this category will be displayed.
+        Optional: specific category to display. If category is in the top level (major): this category and it's subcategories are displayed. If category is in the least level (minor subcategory): the full path to this category (parents) and the available series for this category will be displayed.
 
 * ``get_observations(series_id, observation_start, observation_end, frequency)``
     
@@ -105,25 +105,25 @@ Methods
 
             Frequencies without period descriptions:
 
-            d = Daily
-            w = Weekly
-            bw = Biweekly
-            m = Monthly
-            q = Quarterly
-            sa = Semiannual
-            a = Annual
+                d = Daily
+                w = Weekly
+                bw = Biweekly
+                m = Monthly
+                q = Quarterly
+                sa = Semiannual
+                a = Annual
 
             Frequencies with period descriptions:
 
-            wef = Weekly, Ending Friday
-            weth = Weekly, Ending Thursday
-            wew = Weekly, Ending Wednesday
-            wetu = Weekly, Ending Tuesday
-            wem = Weekly, Ending Monday
-            wesu = Weekly, Ending Sunday
-            wesa = Weekly, Ending Saturday
-            bwew = Biweekly, Ending Wednesday
-            bwem = Biweekly, Ending Monday
+                wef = Weekly, Ending Friday
+                weth = Weekly, Ending Thursday
+                wew = Weekly, Ending Wednesday
+                wetu = Weekly, Ending Tuesday
+                wem = Weekly, Ending Monday
+                wesu = Weekly, Ending Sunday
+                wesa = Weekly, Ending Saturday
+                bwew = Biweekly, Ending Wednesday
+                bwem = Biweekly, Ending Monday
     
         Returns
     
@@ -143,7 +143,7 @@ Methods
 
 * ``update_categories()``
         
-        Update the categories and subcategories stored in a local categories.py file. This does not have to be done frequently, because presumably FRED categories are static. Last updated artefact is included at the top of the categories.py file and it increments with a new date if updated.
+        Update categories and subcategories stored in a local categories.py file. This does not have to be done frequently, because presumably FRED categories are static. Date of the last update is included at the top of the categories.py file, it changes to a new date if updated.
     
         Returns
     
@@ -151,7 +151,7 @@ Methods
     
 * ``get_subcategories(category)``
 
-    Get the subcategories for a specific category.
+    Get subcategories for a specific category.
 
         Parameters
 
@@ -167,7 +167,7 @@ Methods
 
 * ``get_related_categories(category)``
 
-    Get the related categories for a specific category.
+    Get related categories for a specific category.
 
         Parameters
 
