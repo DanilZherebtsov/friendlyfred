@@ -28,3 +28,5 @@ Get data for any series:
 ``fred.get_observations('MMNRJD')``
 
 .. image:: img/observations.png
+    :scale: 50%
+    :align: center
