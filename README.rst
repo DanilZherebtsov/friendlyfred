@@ -1,7 +1,7 @@
-``friendlyfred`` is a python package to query the Federal Reserve Economic Data (`FRED <https://fred.stlouisfed.org/docs/api/fred/>`_).
-
 .. image:: https://img.shields.io/badge/version-0.1.0-success.svg?color=blue
    :target: https://pypi.org/project/verstack/
+
+``friendlyfred`` is a python package to query the Federal Reserve Economic Data (`FRED <https://fred.stlouisfed.org/docs/api/fred/>`_).
 
 The package allows for a simple interface to query the FRED database and retrieve data in a tabular format. 
 
