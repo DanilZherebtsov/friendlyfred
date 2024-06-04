@@ -3,6 +3,7 @@ import sys
 import json
 import pandas as pd
 from lxml import etree
+from datetime import datetime
 from tqdm import tqdm
 from urllib3 import PoolManager
 from anytree import Node, RenderTree
@@ -37,8 +38,12 @@ class Fred:
 
     def _save_categories(self, categories):
         '''Save the categories dictionary to a file.'''
-        with open('categories.py', 'w') as f:
-            f.write('categories = ' + str(categories) + '\n')
+        update_date = datetime.now().strftime('%Y-%m-%d')
+        # get path of categories.py
+        path = os.path.dirname(os.path.abspath(__file__))
+        print(f'Saving categories to file. Last updated: {update_date}')
+        with open(os.path.join(path, 'categories.py'), 'w') as f:
+            f.write(f'# last updated: {update_date} (Y:m:d)\ncategories = {str(categories)}\n')
         return None
 
 
@@ -617,7 +622,7 @@ class Fred:
 
 
     def search(self, search_text, discontinued = True, limit = None, order_by = 'search_rank', sort_order = 'asc', filter = None):
-        '''Search for series in FRED database.
+        '''Search for series in FRED database for series related to seach_text.
         
         Parameters:
         search_text: str
@@ -626,9 +631,10 @@ class Fred:
             Limit the number of results. Default is None which will return up to 1000 results. 
         order_by: str
             Order results by values of the specified attribute.
-            One of the following strings: 'series_id', 'title', 'units', 'frequency', 
-                'seasonal_adjustment', 'realtime_start', 'realtime_end', 'last_updated', 
-                'observation_start', 'observation_end', 'popularity', 'group_popularity'.
+            One of the following strings: 'search_rank', 'series_id', 'title', 'units', 'frequency', 
+                                          'seasonal_adjustment', 'realtime_start', 'realtime_end', 
+                                          'last_updated', 'observation_start', 'observation_end', 
+                                          'popularity', 'group_popularity'.
             Default: search_rank
         sort_order: str
             Sort results is ascending or descending order for attribute values specified by order_by.
