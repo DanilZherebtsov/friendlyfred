@@ -41,6 +41,7 @@ Installation
 ******************
 
   $ ``pip install friendlyfred``
+
   $ ``pip install --upgrade friendlyfred``
 
 
@@ -48,8 +49,7 @@ Installation
 Usage
 ******************
 
-**Get FRED api key**
-*To use friendlyfred, you need to get an API key from the FRED website. It's free and quick: go `here <https://research.stlouisfed.org/docs/api/api_key.html>`_, sign up and request an api key.*
+To use ``friendlyfred``, you need to **get FRED api key**from the FRED website. It's free and quick: go `here <https://research.stlouisfed.org/docs/api/api_key.html>`_, sign up and request an api key.
 
 
 .. code-block:: python
