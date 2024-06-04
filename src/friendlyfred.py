@@ -9,14 +9,8 @@ from anytree import Node, RenderTree
 from categories import categories
 from utils import spinning_cursor
 
-http = PoolManager()
-
 FILE_TYPE = 'json'
-with open('../api_key.txt', 'r') as f:
-    API_KEY = f.read()
-
 ROOT_URL = 'https://api.stlouisfed.org/fred'
-
 
 class Fred:
 
@@ -200,7 +194,7 @@ class Fred:
 
 
     def _fetch_response(self, url):
-        response = http.request('GET', url)
+        response = self.http.request('GET', url)
         response = json.loads(response.data.decode('utf-8'))
         return response
 
@@ -353,7 +347,7 @@ class Fred:
         '''
         frequency_values = ['d', 'w', 'bw', 'm', 'q', 'sa', 'a', 'wef', 'weth', 'wew', 'wetu', 'wem', 'wesu', 'wesa', 'bwew', 'bwem']
         url = f"{ROOT_URL}/series/observations?series_id={series_id}"
-        url = f'{url}&api_key={API_KEY}&file_type={FILE_TYPE}'
+        url = f'{url}&api_key={self.api_key}&file_type={FILE_TYPE}'
         url = f'{url}&observation_start={observation_start}'
         url = f'{url}&observation_end={observation_end}'
         if frequency and frequency in frequency_values:
@@ -390,9 +384,8 @@ class Fred:
         else:
             category_id = category
         url = f'{ROOT_URL}/category/children?category_id={category_id}'
-        url = f'{url}&api_key={API_KEY}&file_type={FILE_TYPE}'
-        response = http.request('GET', url)
-        response = json.loads(response.data.decode('utf-8'))
+        url = f'{url}&api_key={self.api_key}&file_type={FILE_TYPE}'
+        response = self._fetch_response(url)
         children = {}
         for child in response['categories']:
             name, id, parent_id = self._extract_attributes(child)
@@ -415,7 +408,7 @@ class Fred:
         '''
         category_id = self._get_category_id(category)
         url = f'{ROOT_URL}/category/related?category_id={category_id}'
-        url = f'{url}&api_key={API_KEY}&file_type={FILE_TYPE}'
+        url = f'{url}&api_key={self.api_key}&file_type={FILE_TYPE}'
         response = self._fetch_response(url)
         if 'error_code' in response:
             print(response['error_message'])
@@ -431,8 +424,7 @@ class Fred:
         print('Updating categories from FRED website. This may take about 60 seconds.')
         try:
             url = f'https://fred.stlouisfed.org/categories/'
-            response = http.request('GET', url)
-            response = response.data.decode('utf-8')
+            response = self._fetch_response(url)
             parser = etree.XMLParser(recover=True)
             root = etree.fromstring(response, parser)
             categories = {}
@@ -555,7 +547,7 @@ class Fred:
             print(f'Category "{category}" not found.')
             return None
         url = f'{ROOT_URL}/category/series?category_id={category_id}'
-        url = f'{url}&api_key={API_KEY}&file_type={FILE_TYPE}'
+        url = f'{url}&api_key={self.api_key}&file_type={FILE_TYPE}'
         url = self._add_order_by(url, order_by)
         url = self._add_sort_order(url, sort_order)
         url = self._add_filter(url, filter)
@@ -625,7 +617,7 @@ class Fred:
         
         '''
         search_query = self._construct_search_query(search_text)
-        url = f'{ROOT_URL}/series/search?search_text={search_query}&api_key={API_KEY}&file_type={FILE_TYPE}'
+        url = f'{ROOT_URL}/series/search?search_text={search_query}&api_key={self.api_key}&file_type={FILE_TYPE}'
         url = self._add_order_by(url, order_by)
         url = self._add_sort_order(url, sort_order)
         url = self._add_filter(url, filter)
@@ -673,20 +665,20 @@ class Fred:
         '''
         category_id = self._get_category_id(category)
         url = f'{ROOT_URL}/category?category_id={category_id}'
-        url = f'{url}&api_key={API_KEY}&file_type={FILE_TYPE}'
-        response = http.request('GET', url)
-        response = json.loads(response.data.decode('utf-8'))
+        url = f'{url}&api_key={self.api_key}&file_type={FILE_TYPE}'
+        response = self._fetch_response(url)
         return response
 
 
     def get_series_meta(self, series_id):
-        url = f'{ROOT_URL}/series?series_id={series_id}&api_key={API_KEY}&file_type={FILE_TYPE}'
+        url = f'{ROOT_URL}/series?series_id={series_id}&api_key={self.api_key}&file_type={FILE_TYPE}'
         response = self._fetch_response(url)
         series_meta = response['seriess']
         return series_meta
 
 
 fred = Fred(api_key_file='../api_key.txt')
+fred = Fred(api_key='../api_key.txt')
 fred.api_key
 
 fred.print_tree(depth=0)
