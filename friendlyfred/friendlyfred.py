@@ -6,15 +6,14 @@ from lxml import etree
 from tqdm import tqdm
 from urllib3 import PoolManager
 from anytree import Node, RenderTree
-from categories import categories
-from utils import spinning_cursor
+from friendlyfred.categories import categories
+from friendlyfred.utils import spinning_cursor
+from friendlyfred.version import __version__
 
 FILE_TYPE = 'json'
 ROOT_URL = 'https://api.stlouisfed.org/fred'
 
 class Fred:
-
-    __version__ = '0.1.0'
 
     def __init__(self, 
                  api_key = None, 
@@ -29,6 +28,7 @@ class Fred:
         else:
             self.api_key = os.environ.get('FRED_API_KEY')        
 
+    __version__ = __version__
 
     def validate_series_id_type(self, value):
         if not isinstance(value, str):
@@ -381,7 +381,7 @@ class Fred:
     def get_categories(self):
         """Return categories from saved dictionary. 
         They reflect all categories and subcategories in FRED database."""
-        from categories import categories
+        from friendlyfred.categories import categories
         return categories
 
 

@@ -1,1 +1,0 @@
-# friendlyfred: python API for FRED - Federal Reserve Economic Data
