@@ -306,3 +306,41 @@ Methods
             - ``dict``
     
                 A dictionary with the metadata for the series.
+
+
+Development
+-----------
+
+I welcome new contributors of all experience levels. ``verstack`` community goals are to be helpful, welcoming, and effective.
+`Development Guide <https://scikit-learn.org/stable/developers/index.html>`_
+based on scikit-learn best practices has detailed information about contributing code, documentation, tests, and more. 
+
+Important links
+---------------
+
+- Official source code repo: https://github.com/DanilZherebtsov/friendlyfred
+- Issue tracker: https://github.com/DanilZherebtsov/friendlyfred/issues
+
+Source code
+-----------
+
+You can check the latest sources with the command::
+
+    git clone https://github.com/DanilZherebtsov/friendlyfred.git
+
+Submitting a Pull Request
+-------------------------
+
+Before opening a Pull Request, have a look at the full Contributing page to make sure your code complies
+with the following guidelines: https://scikit-learn.org/stable/developers/index.html
+
+Communication
+-------------
+
+- Author email: danil.com@me.com
+- `Author profile <https://www.linkedin.com/in/danil-zherebtsov/>`_
+ 
+Citation
+--------
+
+If you use friendlyfred in a media/research publication, I would appreciate citations to this repository.
