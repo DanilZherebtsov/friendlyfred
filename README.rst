@@ -1,5 +1,5 @@
 .. image:: https://img.shields.io/badge/version-0.1.0-success.svg?color=blue
-   :target: https://pypi.org/project/verstack/
+   :target: https://pypi.org/project/friendlyfred/
 
 ``friendlyfred`` is a python package to query the Federal Reserve Economic Data (`FRED <https://fred.stlouisfed.org/docs/api/fred/>`_).
 
@@ -11,7 +11,7 @@ Display major categories:
 
 ``fred.print_tree(depth = 0)``
 
-.. image:: img/tree_depth_0.png
+.. image:: https://github.com/DanilZherebtsov/friendlyfred/blob/master/img/tree_depth_0.png
     :width: 500
     :height: 347
 
@@ -19,7 +19,7 @@ Show all categories and their subcategories:
 
 ``fred.print_tree(depth = 2)``
 
-.. image:: img/tree_depth_2.png
+.. image:: https://github.com/DanilZherebtsov/friendlyfred/blob/master/img/tree_depth_2.png
     :width: 500
     :height: 419
 
@@ -27,13 +27,13 @@ Show available series for a category:
 
 ``fred.print_tree(category = 'Money Market Accounts')``
 
-.. image:: img/tree_series.png
+.. image:: https://github.com/DanilZherebtsov/friendlyfred/blob/master/img/tree_series.png
 
 Get data for any series:
 
 ``fred.get_observations('MMNRJD')``
 
-.. image:: img/observations.png
+.. image:: https://github.com/DanilZherebtsov/friendlyfred/blob/master/img/observations.png
     :align: center
 
 
