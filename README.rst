@@ -1,5 +1,5 @@
 .. image:: https://img.shields.io/badge/version-0.1.0-success.svg?color=blue
-   :target: https://pypi.org/project/friendlyfred/
+
 
 ``friendlyfred`` is a python package to query the Federal Reserve Economic Data (`FRED <https://fred.stlouisfed.org/docs/api/fred/>`_).
 
