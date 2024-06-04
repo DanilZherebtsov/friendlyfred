@@ -1,5 +1,7 @@
 ``friendlyfred`` is a python package to query the Federal Reserve Economic Data (`FRED <https://fred.stlouisfed.org/docs/api/fred/>`_).
-[![Downloads](https://static.pepy.tech/personalized-badge/verstack?period=total&units=international_system&left_color=grey&right_color=blue&left_text=Downloads)](https://pepy.tech/project/verstack)
+
+.. image:: https://img.shields.io/pepy/dt/verstack
+   :alt: Pepy Total Downlods
 
 version = 0.1.0
 
