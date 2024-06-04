@@ -9,13 +9,14 @@ Display major categories:
 ``fred.print_tree(depth = 0)``
 
 .. image:: img/tree_depth_0.png
-
+    :scale: 50%
 
 Show all categories and their subcategories:
 
 ``fred.print_tree(depth = 2)``
 
 .. image:: img/tree_depth_2.png
+    :scale: 50%
 
 Show available series for a category:
 
