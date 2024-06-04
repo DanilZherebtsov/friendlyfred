@@ -30,6 +30,11 @@ class Fred:
             self.api_key = os.environ.get('FRED_API_KEY')        
 
 
+    def validate_series_id_type(self, value):
+        if not isinstance(value, str):
+            raise ValueError('series_id value must be a string.')
+
+
     def _save_categories(self, categories):
         '''Save the categories dictionary to a file.'''
         with open('categories.py', 'w') as f:
@@ -237,6 +242,8 @@ class Fred:
             order_by_options = get_series_in_category_order_by_options
         if order_by in order_by_options:
             url = f'{url}&order_by={order_by}'
+        else:
+            print(f'order_by not applied. Use one of the following order_by values: {order_by_options}')
         return url
 
 
@@ -244,15 +251,24 @@ class Fred:
         '''Handle sort_order parameter for search.'''
         if sort_order in ['asc', 'desc']:
             url = f'{url}&sort_order={sort_order}'
+        else:
+            print(f'Default ("asc") applied for sort_order. Use one of the following sort_order values: ["asc", "desc"]')
         return url
 
 
     def _add_filter(self, url, filter):
         '''Handle filter parameter for search.'''
         if filter is not None:    
-            if len(filter) == 2:
-                if filter[0] in ['frequency', 'units', 'seasonal_adjustment']:
-                    url = f'{url}&filter_variable={filter[0]}&filter_value={filter[1]}'
+            if isinstance(filter, tuple):
+                if len(filter) == 2:
+                    if filter[0] in ['frequency', 'units', 'seasonal_adjustment']:
+                        url = f'{url}&filter_variable={filter[0]}&filter_value={filter[1]}'
+                    else:
+                        print(f'filter not applied. Use one of the following filter_variable values: ["frequency", "units", "seasonal_adjustment"]')
+                else:
+                    print('filter must be a tuple with two items: (filter_variable, filter_value)')
+            else:
+                print('filter not applied. filter must be a tuple with two items: (filter_variable, filter_value)')
         return url
 
 
@@ -345,6 +361,7 @@ class Fred:
         pd.DataFrame: df with dates and observations.
 
         '''
+        self.validate_series_id_type(series_id)
         frequency_values = ['d', 'w', 'bw', 'm', 'q', 'sa', 'a', 'wef', 'weth', 'wew', 'wetu', 'wem', 'wesu', 'wesa', 'bwew', 'bwem']
         url = f"{ROOT_URL}/series/observations?series_id={series_id}"
         url = f'{url}&api_key={self.api_key}&file_type={FILE_TYPE}'
@@ -368,7 +385,7 @@ class Fred:
         return categories
 
 
-    def get_subcategories(self, category):
+    def get_subcategories(self, category, verbose = True):
         '''Query FRED for the children of a category and return a dictionary with the children data.
         
         Parameters:
@@ -391,7 +408,8 @@ class Fred:
             name, id, parent_id = self._extract_attributes(child)
             children[name] = {'id': id, 'parent_id': parent_id}
         if not children:
-            print(f'No subcategories found for category: {category}')
+            if verbose:
+                print(f'No subcategories found for category: {category}')
         return children
 
 
@@ -420,11 +438,20 @@ class Fred:
     
 
     def update_categories(self):
-        '''Update the categories dictionary with the latest categories from the FRED website.'''    
+        '''Update the categories dictionary with the latest categories from the FRED website.
+        Current categories have been parsed from FRED in June 2024
+        
+        Returns:
+        None
+        
+        '''    
         print('Updating categories from FRED website. This may take about 60 seconds.')
         try:
+            
             url = f'https://fred.stlouisfed.org/categories/'
-            response = self._fetch_response(url)
+            http = PoolManager()
+            response = http.request('GET', url)
+            response = response.data.decode('utf-8')
             parser = etree.XMLParser(recover=True)
             root = etree.fromstring(response, parser)
             categories = {}
@@ -450,13 +477,14 @@ class Fred:
             for parent_name, children in tqdm(categories.items()):
                 for child_name, child in children['children'].items():
                     child_id = child['id']
-                    child['children'] = self.get_subcategories(child_id)
+                    child['children'] = self.get_subcategories(child_id, verbose = False)
             self._save_categories(categories)
-            return categories
+            print('Categories updated successfully.')
+            return
         except Exception as e:
             print(f'Error updating categories: {e}')
-            print('\nReturning initial categories.')
-            return self.get_categories()
+            print('\nKeeping initially parsed categories.')
+            return 
 
 
     def print_tree(self, depth = 0, category = None, discontinued = True):
@@ -467,9 +495,13 @@ class Fred:
             The depth of the categories to print. Can take values from 0 to 2.
         category: str or int
             The category_title or category_id.
-
+        discontinued: bool
+            If False exclude series which have "(DISCONTINUED)" string in title.
+            
         If category is passed, the function will print the category and its subcategories, 
-        in this case it will disregard the depth parameter.
+        If lowest level category is passed (which does not have subcategories), it will print the series in that category.
+        If 'category' arg is used, depth value will be disregarded.
+
 
         Returns:
         None
@@ -557,13 +589,14 @@ class Fred:
             print(response['error_message'])
             return None
         data = pd.DataFrame(response['seriess'])
+        if len(data) == 0:
+            print(f'No series found for category: {category}')
+            return None
         if len(data) < limit:
             return self._drop_discontinued(data, discontinued)
         data = self._drop_discontinued(data, discontinued)
         if len(data) > limit:
             return data.head(limit)
-        if len(data) == 0:
-            return None
         spinner = spinning_cursor()
         for _ in range(1, 9999):
             sys.stdout.write(next(spinner))
@@ -671,146 +704,10 @@ class Fred:
 
 
     def get_series_meta(self, series_id):
+        self.validate_series_id_type(series_id)
         url = f'{ROOT_URL}/series?series_id={series_id}&api_key={self.api_key}&file_type={FILE_TYPE}'
         response = self._fetch_response(url)
         series_meta = response['seriess']
         return series_meta
 
 
-fred = Fred(api_key_file='../api_key.txt')
-fred = Fred(api_key='../api_key.txt')
-fred.api_key
-
-fred.print_tree(depth=0)
-fred.print_tree(depth=1) 
-fred.print_tree(depth=2)
-
-fred.print_tree(category = 'Personal Loan Rates')
-fred.print_tree(category = 'Personal Loan Rates')
-fred.print_tree(category = 'Money Market Accounts')
-fred.print_tree(category = 'Weekly Initial Claims')
-fred.print_tree(category = 22)
-fred.get_category_meta(22)
-fred.print_tree(category = 'Interest Rates')
-fred.get_related_categories(category = 'Eurodollar Deposits')
-
-fred.print_tree(category = 33058, discontinued=True)
-fred.print_tree(category = 33058, discontinued=False)
-fred.print_tree(category = 'National Income & Product Accounts')
-
-fred.get_category_meta('Kosovo')
-fred.get_category_meta(32946)
-fred.get_series_in_category('Kosovo')
-fred.get_series_in_category(32946)
-fred.get_series_in_category('Kosovo', discontinued=False)
-
-fred.get_observations('TERMCBPER24NS')
-fred.get_series_meta('TERMCBPER24NS')
-fred.get_observations('ALKSVA05N') # should return error message
-fred.get_observations('OBMMIC30YFLVLE80FLT680')
-fred.get_categories() 
-fred.get_category_meta(117)
-fred.get_category_meta('Prime Bank Loan Rate')
-fred.get_subcategories('Interest Rates')
-fred.get_subcategories('AMERIBOR Benchmark Rates')
-fred.get_subcategories(22)
-fred.get_subcategories(34009) # should return no children
-fred.get_subcategories('AMERIBOR Benchmark Rates') # should return no children
-
-
-'''
-TODO: 
-- documentation
-'''
-
-results = search('stock', limit = 4246, discontinued = False)
-
-lst = ['EFFR',
- 'SOFR',
- 'MORTGAGE15US',
- 'MORTGAGE30US',
- 'TERMCBPER24NS',
- 'WGS1MO',
- 'WGS3MO',
- 'WGS6MO',
- 'WGS1YR',
- 'WGS2YR',
- 'WGS5YR',
- 'WGS7YR',
- 'WGS10YR',
- 'WGS20YR',
- 'WGS30YR',
- 'M2MSL',
- 'MSIALLA',
- 'M2V',
- 'BORROW',
- 'WALCL',
- 'ANFCI',
- 'CANDH',
- 'DJIA',
- 'DJTA',
- 'NASDAQ100',
- 'NASDAQCOM',
- 'SP500',
- 'WILL5000IND',
- 'WILLLRGCAP',
- 'WILLMICROCAP',
- 'WILLMIDCAP',
- 'WILLSMLCAP',
- 'GVZCLS',
- 'OVXCLS',
- 'RVXCLS',
- 'VIXCLS',
- 'VXDCLS',
- 'VXNCLS',
- 'DTCNLHDNM',
- 'DALLACBEP',
- 'DALLCCACBEP',
- 'DALLCIACBEP',
- 'DALLSREACBEP',
- 'DRALACBS',
- 'DRBLACBS',
- 'DRCCLACBS',
- 'DRCLACBS',
- 'DRCRELEXFACBS',
- 'DRLFRACBS',
- 'DROCLACBS',
- 'DRSREACBS',
- 'UNRATE',
- 'U6RATE',
- 'CIVPART',
- 'CES0500000003',
- 'CPIAUCSL',
- 'CPILFESL',
- 'PCE',
- 'PCEPILFE',
- 'PAYNSA',
- 'JTU1000JOR',
- 'JTU1000HIR',
- 'JTU1000TSR',
- 'JTU1000QUR',
- 'JTU1000LDR',
- 'JTU1000OSR',
- 'CCSA',
- 'ICSA',
- 'GDPNOW',
- 'AFEXPND',
- 'AFRECPT',
- 'ATLSBUEGEP',
- '00XALCEZ18M086NEST',
- 'BVEMTE02EZM460S']
-
-get_observations(lst[0])
-get_series_meta(lst[0])[0]['title']
-
-observations = {}
-for id in tqdm(lst):
-    observations[id] = {}
-    observations[id]['title'] = get_series_meta(id)[0]['title']
-    observations[id]['data'] = get_observations(id)
-
-import pickle
-with open('/Users/danil/Desktop/macrodata.p', 'wb') as f:
-    pickle.dump(observations, f)
-
-search('Effective Federal Funds Rate')
