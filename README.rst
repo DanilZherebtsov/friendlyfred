@@ -9,14 +9,17 @@ Display major categories:
 ``fred.print_tree(depth = 0)``
 
 .. image:: img/tree_depth_0.png
-    :scale: 50%
+    :width: 500
+    :height: 347
+    :align: center
+
 
 Show all categories and their subcategories:
 
 ``fred.print_tree(depth = 2)``
 
 .. image:: img/tree_depth_2.png
-    :scale: 50%
+
 
 Show available series for a category:
 
@@ -30,4 +33,3 @@ Get data for any series:
 
 .. image:: img/observations.png
     :align: center
-    :scale: 50%
