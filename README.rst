@@ -138,15 +138,15 @@ Methods
 
         - ``dict``
 
-        A dictionary with all categories and their children with their respective names, parents ids and children. Does not include the series.
+            A dictionary with all categories and their children with their respective names, parents ids and children. Does not include the series.
 
 * ``update_categories()``
         
         Update the categories and subcategories stored in a local categories.py file. This does not have to be done frequently, because presumably FRED categories are static. Last updated artefact is included at the top of the categories.py file and it increments with a new date if updated.
     
-            Returns
+        Returns
     
-            - ``None``
+        - ``None``
     
 * ``get_subcategories(category)``
 
@@ -156,13 +156,13 @@ Methods
 
         - ``category`` str or int
 
-        Required: category name or category id.
+            Required: category name or category id.
 
         Returns
 
         - ``dict``
 
-        A dictionary with the subcategories for the category.
+            A dictionary with the subcategories for the category.
 
 * ``get_related_categories(category)``
 
@@ -172,13 +172,13 @@ Methods
 
         - ``category`` str or int
 
-        Required: category name or category id.
+            Required: category name or category id.
 
         Returns
 
         - ``dict``
 
-        A dictionary with the related categories for the category.
+            A dictionary with the related categories for the category.
 
 * ``get_series_in_category(category, discontinued, limit, order_by, sort_order, filter)``
 
@@ -188,72 +188,43 @@ Methods
 
         - ``category`` str or int
 
-        Required: category name or category id.
+            Required: category name or category id.
 
         - ``discontinued`` bool
 
-        Optional: whether to include discontinued series. Default is True.
+            Optional: whether to include discontinued series. Default is True.
 
         - ``limit`` int
 
-        Optional: the number of series to return. Default is 1000.
+            Optional: the number of series to return. Default is 1000.
 
         - ``order_by`` str
 
-        Optional: order results by values of the specified attribute.
-        One of the following strings: ``'series_id'``, ``'title'``, ``'units'``, ``'frequency'``, ``'seasonal_adjustment'``, ``'realtime_start'``, ``'realtime_end'``, ``'last_updated'``, ``'observation_start'``, ``'observation_end'``, ``'popularity'``, ``'group_popularity'``.
-        Default: ``'series_id'``
+            Optional: order results by values of the specified attribute.
+            One of the following strings: 'series_id', 'title', 'units', 'frequency', 'seasonal_adjustment', 'realtime_start', 'realtime_end', 'last_updated', 'observation_start', 'observation_end', 'popularity', 'group_popularity'.
+            Default: 'series_id'
 
         - ``sort_order`` str
 
-        Optional: sort order of the results.
-        One of the following strings: ``'asc'``, ``'desc'``.
-        Default: asc
+            Optional: sort order of the results.
+            One of the following strings: 'asc', 'desc'.
+            Default: asc
 
         - ``filter`` str
 
-        Optional: filter results by values of the specified attribute.
-        Two item tuple: (filter_variable, filter_value)
-        One of the following strings: 'frequency', 'units', 'seasonal_adjustment'.
-        Default: None
-        Example: ('seasonal_adjustment', 'Not Seasonally Adjusted')
-
-        Returns
-
-        - ``pandas.DataFrame``
-
-        Dataframe containing all series in a given category and their respective attributes:
-        ['id', 'realtime_start', 'realtime_end', 'title', 'observation_start', 'observation_end', 'frequency', 'frequency_short', 'units', 'units_short', 'seasonal_adjustment', 'seasonal_adjustment_short', 'last_updated', 'popularity', 'group_popularity', 'notes']
-
-
-        Parameters:
-        search_text: str
-            Search query.
-        limit: int
-            Limit the number of results. Default is None which will return up to 1000 results. 
-        order_by: str
-            Order results by values of the specified attribute.
-            One of the following strings: 'series_id', 'title', 'units', 'frequency', 
-                'seasonal_adjustment', 'realtime_start', 'realtime_end', 'last_updated', 
-                'observation_start', 'observation_end', 'popularity', 'group_popularity'.
-            Default: search_rank
-        sort_order: str
-            Sort results is ascending or descending order for attribute values specified by order_by.
-            One of the following strings: 'asc', 'desc'.
-            Default: asc
-        filter: tuple
-            Filter results by values of the specified attribute.
+            Optional: filter results by values of the specified attribute.
             Two item tuple: (filter_variable, filter_value)
             One of the following strings: 'frequency', 'units', 'seasonal_adjustment'.
             Default: None
             Example: ('seasonal_adjustment', 'Not Seasonally Adjusted')
 
-        FRED API returns a maximum of 1000 results per request. Some queries contain more 
-        than 1000 results. In such cases, the function will make multiple requests to get all the results.
-        Just pass the desired "limit" value.
-            
-        Returns:
-        pd.DataFrame: df with metadata of all the series in category.
+        Returns
+
+        - ``pandas.DataFrame``
+
+            Dataframe containing all series in a given category and their respective attributes:
+            ['id', 'realtime_start', 'realtime_end', 'title', 'observation_start', 'observation_end', 'frequency', 'frequency_short', 'units', 'units_short', 'seasonal_adjustment', 'seasonal_adjustment_short', 'last_updated', 'popularity', 'group_popularity', 'notes']
+
 
 * ``search(search_text, discontinued, limit, order_by, sort_order, filter)``
 
@@ -263,45 +234,45 @@ Methods
 
         - ``search_text`` str
 
-        Required: search query.
+            Required: search query.
 
         - ``discontinued`` bool
 
-        Optional: whether to include discontinued series. Default is True.
+            Optional: whether to include discontinued series. Default is True.
 
         - ``limit`` int
 
-        Optional: the number of series to return. Default is 1000.
+            Optional: the number of series to return. Default is 1000.
 
         - ``order_by`` str
 
-        Optional: order results by values of the specified attribute.
-        One of the following strings: 'search_rank', 'series_id', 'title', 'units', 'frequency', 
-                                'seasonal_adjustment', 'realtime_start', 'realtime_end', 
-                                'last_updated', 'observation_start', 'observation_end', 
-                                'popularity', 'group_popularity'.
-        Default: 'search_rand'
+            Optional: order results by values of the specified attribute.
+            One of the following strings: 'search_rank', 'series_id', 'title', 'units', 'frequency', 
+                                    'seasonal_adjustment', 'realtime_start', 'realtime_end', 
+                                    'last_updated', 'observation_start', 'observation_end', 
+                                    'popularity', 'group_popularity'.
+            Default: 'search_rank'
 
         - ``sort_order`` str
 
-        Optional: sort order of the results.
-        One of the following strings: ``'asc'``, ``'desc'``.
-        Default: asc
+            Optional: sort order of the results.
+            One of the following strings: ``'asc'``, ``'desc'``.
+            Default: asc
 
         - ``filter`` str
 
-        Optional: filter results by values of the specified attribute.
-        Two item tuple: (filter_variable, filter_value)
-        One of the following strings: 'frequency', 'units', 'seasonal_adjustment'.
-        Default: None
-        Example: ('seasonal_adjustment', 'Not Seasonally Adjusted')
+            Optional: filter results by values of the specified attribute.
+            Two item tuple: (filter_variable, filter_value)
+            One of the following strings: 'frequency', 'units', 'seasonal_adjustment'.
+            Default: None
+            Example: ('seasonal_adjustment', 'Not Seasonally Adjusted')
 
         Returns
 
         - ``pandas.DataFrame``
 
-        Dataframe containing all series in a given category and their respective attributes:
-        ['id', 'realtime_start', 'realtime_end', 'title', 'observation_start', 'observation_end', 'frequency', 'frequency_short', 'units', 'units_short', 'seasonal_adjustment', 'seasonal_adjustment_short', 'last_updated', 'popularity', 'group_popularity', 'notes']
+            Dataframe containing all series in a given category and their respective attributes:
+            ['id', 'realtime_start', 'realtime_end', 'title', 'observation_start', 'observation_end', 'frequency', 'frequency_short', 'units', 'units_short', 'seasonal_adjustment', 'seasonal_adjustment_short', 'last_updated', 'popularity', 'group_popularity', 'notes']
 
 * ``get_category_meta(category)``
         
@@ -311,26 +282,26 @@ Methods
     
             - ``category`` str or int
     
-            Required: category name or category id.
+                Required: category name or category id.
     
             Returns
     
             - ``dict``
     
-            A dictionary with the metadata for the category.
+                A dictionary with the metadata for the category.
 
 * ``get_series_meta(series_id)``
             
-            Get metadata for a specific series.
+        Get metadata for a specific series.
         
-                Parameters
-        
-                - ``series_id`` str
-        
+            Parameters
+    
+            - ``series_id`` str
+    
                 Required: series id.
-        
-                Returns
-        
-                - ``dict``
-        
+    
+            Returns
+    
+            - ``dict``
+    
                 A dictionary with the metadata for the series.
