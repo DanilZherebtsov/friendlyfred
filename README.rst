@@ -1,10 +1,8 @@
-**friendlyfred** package to query the `FRED <https://fred.stlouisfed.org>` database - Federal Reserve Economic Data. 
-
-The package is a Python wrapper for the `FRED API <https://fred.stlouisfed.org/docs/api/fred/>`_.
+**friendlyfred** python package to query the Federal Reserve Economic Data (`FRED <https://fred.stlouisfed.org/docs/api/fred/>`_).
 
 The package allows for a simple interface to query the FRED database and retrieve data in a tabular format. 
 
-The package also has a built-in functionality to display all the available FRED categories with it's handy print_tree() method.
+The package also has a built-in functionality to display all the available FRED categories with it's handy ``print_tree()`` method.
 
 Display major categories:
 
