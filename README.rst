@@ -24,3 +24,9 @@ Show available series for a category:
 ``fred.print_tree(category = 'Money Market Accounts')``
 
 .. image:: img/tree_series.png
+
+Get data for any series:
+
+``fred.get_observations('MMNRJD')``
+
+.. image:: img/observations.png
