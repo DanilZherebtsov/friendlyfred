@@ -1,5 +1,4 @@
-.. image:: https://img.shields.io/badge/version-0.1.1-success.svg?color=blue
-
+.. image:: https://img.shields.io/badge/version-0.1.2-success.svg
 
 ``friendlyfred`` is a python package to query the Federal Reserve Economic Data (`FRED <https://fred.stlouisfed.org/docs/api/fred/>`_).
 
@@ -11,7 +10,7 @@ Display major categories:
 
 ``fred.print_tree(depth = 0)``
 
-.. image:: https://github.com/DanilZherebtsov/friendlyfred/blob/master/img/tree_depth_0.png
+.. image:: https://raw.githubusercontent.com/DanilZherebtsov/friendlyfred/master/img/tree_depth_0.png
     :width: 500
     :height: 347
 
@@ -19,7 +18,7 @@ Show all categories and their subcategories:
 
 ``fred.print_tree(depth = 2)``
 
-.. image:: https://github.com/DanilZherebtsov/friendlyfred/blob/master/img/tree_depth_2.png
+.. image:: https://raw.githubusercontent.com/DanilZherebtsov/friendlyfred/master/img/tree_depth_2.png
     :width: 500
     :height: 419
 
@@ -27,13 +26,13 @@ Show available series for a category:
 
 ``fred.print_tree(category = 'Money Market Accounts')``
 
-.. image:: https://github.com/DanilZherebtsov/friendlyfred/blob/master/img/tree_series.png
+.. image:: https://raw.githubusercontent.com/DanilZherebtsov/friendlyfred/master/img/tree_series.png
 
 Get data for any series:
 
 ``fred.get_observations('MMNRJD')``
 
-.. image:: https://github.com/DanilZherebtsov/friendlyfred/blob/master/img/observations.png
+.. image:: https://raw.githubusercontent.com/DanilZherebtsov/friendlyfred/master/img/observations.png
     :align: center
 
 
@@ -258,7 +257,7 @@ Methods
 
             Optional: sort order of the results.
             One of the following strings: ``'asc'``, ``'desc'``.
-            Default: asc
+            Default: 'asc'
 
         - ``filter`` str
 
