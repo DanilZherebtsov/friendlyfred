@@ -11,15 +11,14 @@ Display major categories:
 .. image:: img/tree_depth_0.png
     :width: 500
     :height: 347
-    :align: center
-
 
 Show all categories and their subcategories:
 
 ``fred.print_tree(depth = 2)``
 
 .. image:: img/tree_depth_2.png
-
+    :width: 500
+    :height: 419
 
 Show available series for a category:
 
