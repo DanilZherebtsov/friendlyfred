@@ -55,14 +55,13 @@ To use ``friendlyfred``, you need to **get FRED api key** from the FRED website.
 .. code-block:: python
 
   from friendlyfred import Fred
-  fred = Fred(api_key = 'your_api_key')
-  # optionally pass a txt file with api key as an api_key_file argument
-  # optionally create an environment variable FRED_API_KEY and it will be sourced automatically
-
+  fred = Fred(api_key = 'your_api_key') # pass key as a string
+  fred = Fred(api_key_file = 'path_to_your_api_key.txt') # txt must contain the api key in first line without quotes
+  fred = Fred() # if no key is provided, it will look for an environment variable FRED_API_KEY
 
 Note 
 ===========================
-``friendlyfred`` contains the full structure of all FRED categories and subcategories which it can display with ``print_tree(depth = 2)`` method without an API key. In order to dive deeper and display the available series for a category (E.g. ``print_tree(category = 'Saving Accounts')``), or to get observations for any series you need to provide an API key.
+``friendlyfred`` contains the full static structure of all FRED categories and subcategories which it can display with ``print_tree(depth = 2)`` method **without an API key**. In order to dive deeper and display the available series for a category (E.g. ``print_tree(category = 'Saving Accounts')``), or to get observations for any series you need to provide an API key.
 
 Methods
 ===========================
